@@ -5,14 +5,17 @@ Dostop do storitve Azure smo dobili tako da smo sledili naslednjim korakom:
 - Po kliku na ta [link](https://azure.microsoft.com/en-us/pricing/purchase-options/azure-account?icid=azurefaq) smo kliknili na gumb `Try for Free`, nakar smo se prijavili z računom vodje skupine.
 - Med prijavo smo vnašali zahtevane podatke, kar je zahtevalo tudi `Company VatId`, kamor smo vnesli davčno številko Feri-ja.
 - Po uspešni prijavi smo bili preusmerjeni na Azure portal:
+
 ![Azure portal](images/portal.png)
 
 ## Ustvarjanje Linux virtualne naprave
 Po registraciji smo ustvarili Linux VM z naslednjimi koraki:
 - Po kliku na ta [link](https://portal.azure.com/#view/Microsoft_Azure_Billing/FreeServicesBlade) smo kliknili na gumb `Create` v lističu `Linux Virtual Machine`.
+
 ![Ustvarjanje Linux VM](images/vm-create-gumb.png)
 
 - Nato smo izpolnili obrazec za ustvarjanje VM-ja, tako da smo sledili navodilom na `eŠtudij-u`.
+
 ![Ustvarjanje VM](images/vm-create.png)
 
 - Po kliku na gumb `Review + create` in še enkrat na `Create` je bil VM ustvarjen.
@@ -23,6 +26,7 @@ Po registraciji smo ustvarili Linux VM z naslednjimi koraki:
 ## 1. Kje in kako omogočite "port forwarding"?
 
 Port forwarding omogočimo tako, da v levem navigacijskem stolpcu na strani našega VM-ja kliknemo ``Networking``, in nato ``Network settings``. Tam lahko vidimo sledeče:
+
 ![Netword settings](images/network-settings.png)
 
 Na dnu strani lahko vidimo že obstoječa pravila. Če želimo dodati novega, kliknemo na gumb `Create port rule` in nato Inbound port rule.
@@ -57,3 +61,15 @@ Odpre se nam sledeča stran:
 ![Disk properties](images/disk-properties.png)
 
 Tukaj lahko vidimo, da je naši napravi bil dodan disk tipa ``Premium SSD LRS``, z kapaciteto ``64 GB``.
+
+## 3. Kje preverimo stanje trenutne porabe virov v naši naročnini ("Azure for students")?
+
+Stanje porabe v naročnini lahko preverimo tako, da gremo v ``Cost Management + Billing``. Do tja lahko pridemo tako, da to vnesemo v iskalnik na vrhu strani, ali pa s tem, da gremo na osnovno stran, kliknemo ``All services`` in nato ``Cost Management + Billing``.
+
+To nas preusmeri na sledečo stran, kjer lahko vidimo koliko virov smo porabili in koliko nam jih še ostane:
+
+![Resource usage](images/resource-usage.png)
+
+Če v tem oknu pod ``Cost Management`` kliknemo ``Cost analysis``, lahko vidimo podrobnejše podatke o porabi virov. Ti so pri nas prazni, saj zaenkrat nismo uporabili še ničesar, kar ni vključeno v študentski paket.
+
+![Cost analysis](images/cost-analysis.png)
