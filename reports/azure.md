@@ -16,3 +16,35 @@ Po registraciji smo ustvarili Linux VM z naslednjimi koraki:
 ![Ustvarjanje VM](images/vm-create.png)
 
 - Po kliku na gumb `Review + create` in še enkrat na `Create` je bil VM ustvarjen.
+
+
+# Odgovori na vprašanja:
+
+## 1. Kje in kako omogočite "port forwarding" ?
+
+Port forwarding omogočimo tako, da v nastavitvah našege VM-ja kliknemo Networking, in nato Netword settings. Tam lahko vidimo sledeče:
+![Netword settings](images/network-settings.png)
+
+Na dnu strani lahko vidimo že obstoječa pravila. Če želimo dodati novega, kliknemo na gumb `Create port rule` in nato Inbound port rule.
+
+![Create port rule](images/create-port-rule.png)
+
+To odpre naslednje okno:
+
+![Port rule form](images/port-rule-form.png)
+
+Nato moramo izpolniti naslednji obrazec, ki vsebuje:
+- **Source:** Iz katerih IP-jev lahko dostopamo do VM-ja oziroma za katere velja to pravilo
+- **Source port ranges:** Iz katerih port-ov lahko dostopamo do VM-ja oziroma za katere velja to pravilo
+- **Destination:** Za promet na katere IP-je velja to pravilo (večinoma je to samo IP VM-ja)
+- **Service:** Določi protokol in za katere port-e velja pravilo
+- **Destination port ranges:** Za dostope do katerih port-ov velja to pravilo
+- **Protocol:** Any, TCP, UDP, ICMPv4 ali ICMPv6
+- **Action:** Določi ali bo pravilo sprejelo ali zavrnilo promet
+- **Priority:** Določi prioriteto pravila, če obstaja več pravil, nižja kot je številka, višja je prioriteta. Številka mora biti unikatna med vsemi pravili.
+- **Name:** Ime pravila
+- **Description:** Opis pravila
+
+Ko smo izpolnili vse potrebne podatke, kliknemo na gumb `Add` in pravilo je dodano.
+
+![Inbound rule example](images/inbound-rule-example.png)
