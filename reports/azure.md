@@ -12,7 +12,7 @@ Po registraciji smo ustvarili Linux VM z naslednjimi koraki:
 - Po kliku na ta [link](https://portal.azure.com/#view/Microsoft_Azure_Billing/FreeServicesBlade) smo kliknili na gumb `Create` v lističu `Linux Virtual Machine`.
 ![Ustvarjanje Linux VM](images/vm-create-gumb.png)
 
-- Nato smo izpomnili obrazec za ustvarjanje VM-ja, tako da smo sledili navodilom na `eŠtudij-u`.
+- Nato smo izpolnili obrazec za ustvarjanje VM-ja, tako da smo sledili navodilom na `eŠtudij-u`.
 ![Ustvarjanje VM](images/vm-create.png)
 
 - Po kliku na gumb `Review + create` in še enkrat na `Create` je bil VM ustvarjen.
@@ -20,9 +20,9 @@ Po registraciji smo ustvarili Linux VM z naslednjimi koraki:
 
 # Odgovori na vprašanja:
 
-## 1. Kje in kako omogočite "port forwarding" ?
+## 1. Kje in kako omogočite "port forwarding"?
 
-Port forwarding omogočimo tako, da v nastavitvah našege VM-ja kliknemo Networking, in nato Netword settings. Tam lahko vidimo sledeče:
+Port forwarding omogočimo tako, da v levem navigacijskem stolpcu na strani našega VM-ja kliknemo ``Networking``, in nato ``Network settings``. Tam lahko vidimo sledeče:
 ![Netword settings](images/network-settings.png)
 
 Na dnu strani lahko vidimo že obstoječa pravila. Če želimo dodati novega, kliknemo na gumb `Create port rule` in nato Inbound port rule.
@@ -48,3 +48,12 @@ Nato moramo izpolniti naslednji obrazec, ki vsebuje:
 Ko smo izpolnili vse potrebne podatke, kliknemo na gumb `Add` in pravilo je dodano.
 
 ![Inbound rule example](images/inbound-rule-example.png)
+
+## 2. Kakšen tip diska je bil dodan vaši navidezni napravi in kakšna je njegova kapaciteta?
+
+Da vidimo podatke o disku našega VM-ja, kliknemo na ``Overview`` v levem navigacijskem stolpcu, nakar pod ``Properties``, ki so privzeto že odprti, kliknemo na ``Disk``.
+Odpre se nam sledeča stran:
+
+![Disk properties](images/disk-properties.png)
+
+Tukaj lahko vidimo, da je naši napravi bil dodan disk tipa ``Premium SSD LRS``, z kapaciteto ``64 GB``.
