@@ -20,6 +20,45 @@ Po registraciji smo ustvarili Linux VM z naslednjimi koraki:
 
 - Po kliku na gumb `Review + create` in še enkrat na `Create` je bil VM ustvarjen.
 
+## Zagotovitev SSH dostopa do VM-ja
+Dostop smo zagotovili tako, da smo za vsakega člana naredili posebej uporabnika. Temu smo dodelili tudi pravice `sudo`. 
+
+Postopek:
+- Prijava na VM preko SSH:
+```
+ssh kaput@<20.160.53.218>
+
+# Vnesemo geslo, ki smo ga izbrali ob ustvarjanju VM-ja
+```
+
+- Ustvarjanje uporabnikov in dodelitev pravic `sudo`:
+```
+# Pri ustvarjanju vsakega uporabnika sem vnesel tudi njegovo geslo, ter nato klikal enter, tako da so bile za ostale podatke uporabljene privzete vrednosti.
+
+sudo adduser lukak
+sudo adduser enejk
+sudo adduser davidg
+
+sudo usermod -aG sudo lukak
+sudo usermod -aG sudo enejk
+sudo usermod -aG sudo davidg
+```
+
+- Po tem sem spremenil nastavitve SSH dostopa, da dovolijo dostop preko uporabniškega imena in gesla:
+```
+sudo nano /etc/ssh/sshd_config
+
+# Odkomentiramo naslednjo vrstion:
+PasswordAuthentication yes
+
+systemctl restart ssh
+```
+
+Po tem se lahko prijavimo na VM preko SSH z uporabo `ssh <username>@<ip>`.
+
+Primer:
+
+![SSH primer](images/ssh-example.png)
 
 # Odgovori na vprašanja:
 
