@@ -112,3 +112,54 @@ To nas preusmeri na sledečo stran, kjer lahko vidimo koliko virov smo porabili 
 Če v tem oknu pod ``Cost Management`` kliknemo ``Cost analysis``, lahko vidimo podrobnejše podatke o porabi virov. Ti so pri nas prazni, saj zaenkrat nismo uporabili še ničesar, kar ni vključeno v študentski paket.
 
 ![Cost analysis](images/cost-analysis.png)
+
+# Vzpostavitev Docker aplikacije na VM-ju
+
+## Uporaba Git-a za prenos kode
+
+Da smo lahko kodo prenesli na VM, smo morali vzpostaviti avtentikacijo Git-a z SSH ključi. To smo naredili tako, da smo na VM-ju ustvarili SSH ključ in ga dodali v GitHub nastavitve. Postopek:
+- Na VM-ju smo odprli terminal in vnesli naslednje ukaze:
+    - `ssh-keygen -t ed25519 -C "luka.kuder@gmail.com"` (To ustvari 2 ključa, javnega in zasebnega)
+    - `cat ~/.ssh/id_ed25519.pub` (To prikaže javni ključ, ki ga moramo kopirati v GitHub nastavitve)
+- Po tem smo šli na `https://github.com/settings/keys`, kjer smo kliknili na gumb `New SSH key`, vnesli ime ključa in prilepili javni ključ, ki smo ga dobili prej in kliknili `Add SSH key`. (Povezavo smo testirali z `ssh -T git@github.com`)
+
+Prikaz dodanega SSH ključa na GitHub-u:
+
+![SSH key](images/ssh-key.png)
+
+- Po tem smo prenesli kodo iz repozitorija na VM z ukazom `git clone git@github.com:KaputProject/spletno.git`, kar je preneslo celoten repozitorij na VM.
+
+![Git cloning](images/git-cloning.png)
+
+## Uporaba Dockerja za zagon aplikacije
+Najprej smo namestili docker:
+```
+sudo apt install docker.io docker-compose -y
+
+sudo systemctl enable docker
+sudo systemctl start docker
+```
+
+Nato pa še vspostavili aplikacijo:
+```
+cd spletno
+
+git checkout develop
+
+# Ustvarimo .env datoteki v /backend in /frontend, tako da kopiramo .env.example:
+cd backend
+cp .env.example .env
+sudo nano .env
+# V .env datoteki backenda dodamo na novo generiran JWT ključ, ostale nastavitve pa ohranimo.
+
+cd ..
+cd frontend
+cp .env.example .env
+# Tukaj vse vrednosti pustimo na privzetih
+
+sudo docker-compose up --build
+```
+
+Da bo lahko server sprejemal zahteve na port 80 moremo narediti še nov `Port rule`:
+
+![Http port pule](images/http-port-rule.png)
