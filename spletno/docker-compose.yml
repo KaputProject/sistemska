@@ -1,0 +1,65 @@
+services:
+  mongo:
+    image: mongo:latest
+    container_name: kaputDB
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - kaput-data:/data/db
+
+  backend-dev:
+    container_name: backend
+    build:
+      context: .
+      dockerfile: backend/DockerFile.backend
+      target: dev
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    ports:
+      - "5000:5000"
+    env_file:
+      - ./backend/.env
+    restart: unless-stopped
+    depends_on:
+      - mongo
+
+  frontend-dev:
+    container_name: frontend
+    build:
+      context: .
+      dockerfile: frontend/DockerFile.frontend
+      target: dev
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./frontend/.env
+    restart: unless-stopped
+
+    depends_on:
+      - backend-dev
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+      - ./Caddyfile:/etc/caddy/Caddyfile
+    depends_on:
+      - frontend-dev
+      - backend-dev
+    restart: unless-stopped
+
+volumes:
+  kaput-data:
+  caddy_data:
+  caddy_config:
+

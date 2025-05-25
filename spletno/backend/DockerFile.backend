@@ -1,0 +1,17 @@
+# development
+FROM node:20-slim as dev
+
+WORKDIR /app
+
+# Copy only package.json and lock first (for caching)
+COPY backend/package*.json ./
+
+# Install dependencies
+RUN npm install
+
+# Copy the actual app source
+COPY backend/ .
+
+# Start the app using nodemon
+CMD ["npm", "start"]
+
