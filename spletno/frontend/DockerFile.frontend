@@ -1,0 +1,18 @@
+#development
+FROM node:20-slim as dev
+
+#define working dir
+WORKDIR /app
+
+#copy package.json and package-lock.json to container
+COPY frontend/package*.json ./
+RUN npm install
+
+#copy all filess
+COPY frontend/ .
+
+#start app in dev
+CMD ["npm", "start"]
+
+
+
