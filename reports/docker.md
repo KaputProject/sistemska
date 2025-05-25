@@ -18,42 +18,46 @@ izdelati smo morali docker file za back in fornt end prav tako smo morali izdela
 ## 1. Docker file za backend
 za back-end smo naredili docker file imenovan *DockerFile.backend*
 ```yaml
-# definicija node verzije
+# definicija node verzije 
 FROM node:20-slim as dev
 
-WORKDIR /app
+# Nastavi delovni imenik v kontejnerju
+WORKDIR /appsa
 
-# kopira back in pa front
+# Kopiraj datoteki package.json in package-lock.json v kontejner
 COPY backend/package*.json ./
 
-# Install dependencies
+# Namesti odvisnosti aplikacije
 RUN npm install
 
-# Copy the actual app source
+# Kopiraj izvorno kodo aplikacije v kontejner
 COPY backend/ .
 
-# Starting the app
+# Zaženi aplikacijo
 CMD ["npm", "start"]
+
 ```
 ---
 ## 2. Docker file za frontend
 za back end smo naredili docker file imenovan *DockerFile.frontend*
 
 ```yaml
-#development
-FROM node:22.14.0 as dev
+# definicija node verzije 
+FROM node:20-slim as dev
 
-#define working dir
+# Nastavi delovni imenik v kontejnerju
 WORKDIR /app
 
-#copy package.json and package-lock.json to container
+# Kopiraj datoteki package.json in package-lock.json v kontejner
 COPY frontend/package*.json ./
+
+# Namesti odvisnosti aplikacije
 RUN npm install
 
-#copy all filess
+  # Kopiraj izvorno kodo aplikacije v kontejner
 COPY frontend/ .
 
-#start app in dev
+# Zaženi aplikacijo
 CMD ["npm", "start"]
 ```
 ---
@@ -61,11 +65,14 @@ CMD ["npm", "start"]
 ## 3. CaddyFile
 ```yaml
 :80 {
+  # Obravnava vseh zahtevkov, ki se začnejo z /api/
   handle_path /api/* {
+  # Posreduj zahteve na backend strežnik na portu 5000
   reverse_proxy backend:5000
   }
-
+  # Obravnava vseh drugih zahtevkov (npr. statične strani)
   handle {
+  # Posreduj zahteve na frontend strežnik na portu 3000
   reverse_proxy frontend:3000
   }
 }
@@ -74,89 +81,131 @@ CMD ["npm", "start"]
 ## 4. Docker-compose.yml
 ### 1. **MongoDB baza (`db`)**
 ```yaml
-   mongo:
-     image: mongo:latest
-     container_name: kaputDB
-     restart: unless-stopped
-     ports:
-       - "27017:27017"
-     volumes:
-       - kaput-data:/data/db
+  mongo:
+    # Izberemo verzijo MongoDB
+    image: mongo:2-alpine
+
+    # Nastavimo ime kontejnerja
+    container_name: kaputDB
+
+    # Kontejner se samodejno ponovno zažene, razen če ga ročno ustavimo
+    restart: unless-stopped
+
+    # Posredujemo vrata iz gostitelja na kontejner (27017 je privzeta vrata MongoDB)
+    ports:
+      - "27017:27017"
+
+    # Določimo lokacijo, kjer se bo shranjevala baza podatkov (volumen na gostitelju)
+    volumes:
+      - kaput-data:/data/db
+
 
 ```
 ### 2. **Konfiguracija backend (` backend-dev`)**
 ```yaml
-   backend-dev:
-     container_name: backend
-     build:
-       context: .
-       dockerfile: backend/DockerFile.backend
-       target: dev
-     volumes:
-       - ./backend:/app
-       - /app/node_modules
-     ports:
-       - "5000:5000"
-     env_file:
-       - ./backend/.env
-     restart: unless-stopped
-     depends_on:
-       - mongo
+  backend-dev:
+    # Nastavimo ime kontejnerja
+    container_name: backend
+
+    # Gradimo sliko iz podane poti in Dockerfile-a ter uporabimo ciljno fazo "dev"
+    build:
+      context: .
+      dockerfile: backend/DockerFile.backend
+      target: dev
+
+    # Povežemo lokalno mapo z /app v kontejnerju za razvoj v živo
+    volumes:
+      - ./backend:/app            # Lokalna mapa z backend kodo
+      - /app/node_modules         # Da ohranimo node_modules znotraj kontejnerja 
+      - 
+    # Posredujemo vrata za dostop do aplikacije
+    ports:
+      - "5000:5000"
+
+    # Uvozimo okoljske spremenljivke iz datoteke .env
+    env_file:
+      - ./backend/.env
+
+    # Kontejner se samodejno ponovno zažene, razen če ga ročno ustavimo
+    restart: unless-stopped
+
+    # Poskrbimo, da se backend zažene šele po MongoDB
+    depends_on:
+      - mongo
+
 ```
 ### 3. **Konfiguracija backend (`frontend-dev`)**
 ```yaml
   frontend-dev:
+    # Nastavimo ime kontejnerja
     container_name: frontend
+
+    # Gradimo sliko iz podane poti in Dockerfile-a ter uporabimo ciljno fazo "dev"
     build:
       context: .
       dockerfile: frontend/DockerFile.frontend
       target: dev
+
+    # Povežemo lokalno mapo z /app v kontejnerju za razvoj v živo
     volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      - ./frontend:/app           # Lokalna mapa z frontend kodo
+      - /app/node_modules         # Ohranimo node_modules v kontejnerju, da preprečimo konflikte z lokalnimi paketi
+
+    # Posredujemo vrata za frontend aplikacijo 
     ports:
       - "3000:3000"
+
+    # Uvozimo okoljske spremenljivke iz datoteke .env
     env_file:
       - ./frontend/.env
+
+    # Kontejner se samodejno ponovno zažene, razen če ga ročno ustavimo
     restart: unless-stopped
 
+    # Poskrbimo, da se frontend zažene po backendu
     depends_on:
       - backend-dev
+
 ```
 ### 3. **Konfiguracija caddz (`caddy`)**
 ```yaml
-   caddy:
-     image: caddy:2-alpine
-     container_name: caddy
-     ports:
-       - "80:80"
-       - "443:443"
-     volumes:
-       - caddy_data:/data
-       - caddy_config:/config
-       - ./Caddyfile:/etc/caddy/Caddyfile
-     depends_on:
-       - frontend-dev
-       - backend-dev
-     restart: unless-stopped
+  caddy:
+    # Uporabimo Caddy sliko z majhno velikostjo 
+    image: caddy:2-alpine
 
-   volumes:
-     kaput-data:
-     caddy_data:
-     caddy_config:
+    # Nastavimo ime kontejnerja
+    container_name: caddy
+
+    # Posredujemo vrata 80 in 443
+    ports:
+      - "80:80"
+      - "443:443"
+
+    # Določimo volumne za Caddy:
+    volumes:
+      - caddy_data:/data                       # Za caddy podatke
+      - caddy_config:/config                   # Za notranjo konfiguracijo Caddy-ja
+      - ./Caddyfile:/etc/caddy/Caddyfile      # Naš Caddyfile s pravili za usmerjanje
+
+    # Poskrbimo, da se Caddy zažene po backendu in frontendu
+    depends_on:
+      - frontend-dev
+      - backend-dev
+
+    # Samodejni ponovni zagon, razen če ga ročno ustavimo
+    restart: unless-stopped
+
+  # Definicija volumnov, ki jih uporabljajo mongo in caddy
+  volumes:
+    kaput-data:     # Za MongoDB podatke
+    caddy_data:     # Za caddy podatke
+    caddy_config:   # Za konfiguracijske podatke Caddy-ja
+
 ```
 
-## navodila in zagon 
-- Namesti Docker in Docker Compose.
-
-- V korenski mapi projekta zaženi ukaz:
-```yaml
-docker-compose up --build
-```
-Aplikacija bo dostopna na:
-
-Frontend (prek Caddy): http://localhost
-
-Backend API: http://localhost/api
-
-MongoDB: mongodb://localhost:27017
+## Zagon
+zažene se z komando docker-compose up
+![primer zagona](images/zagon-docker.png)
+po izvedbi komande se nam na dockerju naložijo datoteke in ustvarijo oz poženejo kontejnerji
+![primer zagona](images/docker-containers.png)
+na sliki recimo vidimo imena vseh kontejnerjev, ki smo jih definirali prav tako se vidi, kdaj so bili zagnani koliko CPU zavzamejo in koliko zasedejo v RAM-u in podobno  
