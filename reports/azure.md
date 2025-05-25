@@ -26,7 +26,7 @@ Dostop smo zagotovili tako, da smo za vsakega člana naredili posebej uporabnika
 Postopek:
 - Prijava na VM preko SSH:
 ```
-ssh kaput@<20.160.53.218>
+ssh kaput@20.82.89.167
 
 # Vnesemo geslo, ki smo ga izbrali ob ustvarjanju VM-ja
 ```
@@ -39,9 +39,20 @@ sudo adduser lukak
 sudo adduser enejk
 sudo adduser davidg
 
-sudo usermod -aG sudo lukak
-sudo usermod -aG sudo enejk
-sudo usermod -aG sudo davidg
+sudo groupadd kaput
+
+sudo usermod -aG kaput lukak
+sudo usermod -aG kaput enejk
+sudo usermod -aG kaput davidg
+
+sudo mkdir -p /srv/kaput
+
+# Nastavimo skupino za lastnico mape, da lahko vsi v njej spreminjamo stvari
+sudo chown -R :kaput /srv/kaput
+sudo chmod g+rwx /srv/kaput
+sudo chmod g+s /srv/kaput
+
+sudo reboot
 ```
 
 - Po tem sem spremenil nastavitve SSH dostopa, da dovolijo dostop preko uporabniškega imena in gesla:
@@ -112,3 +123,73 @@ To nas preusmeri na sledečo stran, kjer lahko vidimo koliko virov smo porabili 
 Če v tem oknu pod ``Cost Management`` kliknemo ``Cost analysis``, lahko vidimo podrobnejše podatke o porabi virov. Ti so pri nas prazni, saj zaenkrat nismo uporabili še ničesar, kar ni vključeno v študentski paket.
 
 ![Cost analysis](images/cost-analysis.png)
+
+# Vzpostavitev Docker aplikacije na VM-ju
+
+## Uporaba Git-a za prenos kode
+
+Da smo lahko kodo prenesli na VM, smo morali vzpostaviti avtentikacijo Git-a z SSH ključi. To smo naredili tako, da smo na VM-ju ustvarili SSH ključ in ga dodali v GitHub nastavitve. Postopek:
+- Na VM-ju smo odprli terminal in vnesli naslednje ukaze:
+    - `ssh-keygen -t ed25519 -C "luka.kuder@gmail.com"` (To ustvari 2 ključa, javnega in zasebnega)
+    - `cat ~/.ssh/id_ed25519.pub` (To prikaže javni ključ, ki ga moramo kopirati v GitHub nastavitve)
+- Po tem smo šli na `https://github.com/settings/keys`, kjer smo kliknili na gumb `New SSH key`, vnesli ime ključa in prilepili javni ključ, ki smo ga dobili prej in kliknili `Add SSH key`. (Povezavo smo testirali z `ssh -T git@github.com`)
+
+Prikaz dodanega SSH ključa na GitHub-u:
+
+![SSH key](images/ssh-key.png)
+
+- Po tem smo prenesli kodo iz repozitorija na VM z ukazom `git clone git@github.com:KaputProject/spletno.git`, kar je preneslo celoten repozitorij na VM.
+
+![Git cloning](images/git-cloning.png)
+
+## Uporaba Dockerja za zagon aplikacije
+Najprej smo namestili docker:
+```
+sudo apt install docker.io docker-compose -y
+
+sudo systemctl enable docker
+sudo systemctl start docker
+```
+
+Nato pa še vspostavili aplikacijo:
+```
+cd ../../srv/kaput/spletno
+
+git checkout develop
+
+# Ustvarimo .env datoteki v /backend in /frontend, tako da kopiramo .env.example:
+cd backend
+cp .env.example .env
+sudo nano .env
+# V .env datoteki backenda dodamo na novo generiran JWT ključ, ostale nastavitve pa ohranimo.
+
+cd ..
+cd frontend
+cp .env.example .env
+# Tukaj vse vrednosti pustimo na privzetih
+
+sudo docker-compose up --build
+
+sudo docker-compose up
+```
+
+Če je bilo vse uspešno bo izpis približno tak:
+
+![Compose up success](images/docker-compose-up-success.png)
+
+Da bo lahko server sprejemal zahteve na port 80 moremo narediti še nov `Port rule`:
+
+![Http port pule](images/http-port-rule.png)
+
+Tukaj smo naleteli na problem, saj naša docker slika uporablja približno 800MB pomnilnika, saj smo za frontend vključili nekaj knjižnic, ki jih bomo uporabili za oblikovanje.
+
+Ker je VM, ki smo ga originalno naredili imel samo 1 GB pomnilnika, je po tem, ko smo zagnali sudo docker-compose up --build postal praktično neodziven.
+
+Zaradi tega smo se odločili, da bomo ustvarili nov VM, ki ima 2 GB pomnilnika. Postopek za ustvarjanje je bil popolnoma isti, samo da smo izbrali naslednjo opcijo:
+
+![2GB VM](images/2gb-vm.png)
+
+Po tem ko smo ponovili celoten postopek se nam je pokazala spletna stran:
+
+![Delojoča stran](images/spletna-stran.png)
+
