@@ -377,4 +377,213 @@ const testData = { message: 'User Luka K.', number: 42 };
 
 ---
 
+## Webhook Strežnik
 
+### Namen
+
+Webhook strežnik sprejme HTTP POST zahtevo, preveri avtentikacijo, nato pa izvede avtomatski deploy: ustavi aktivne Docker kontejnere, prenese najnovejše slike in ponovno zažene aplikacijo.
+
+### Namestitev Potrebnih Paketov
+
+```bash
+sudo apt update
+sudo apt install python3 python3-pip docker.io docker-compose git -y
+sudo pip3 install flask
+```
+
+## Dodajanje pravice Uporabniku `kaput` za Docker
+
+```bash
+sudo usermod -aG docker kaput
+newgrp docker
+```
+
+### Koda (`webhook_server.py`)
+
+Naša skripta webhook_server.py je preprosta, a učinkovita rešitev za avtomatizacijo nameščanja nove različice spletne aplikacije s pomočjo Webhook mehanizma, kot ga ponuja GitHub. S pomočjo knjižnice Flask smo omogočili, da strežnik posluša na določenem portu (privzeto 5002) in čaka na POST zahteve, ki jih sproži dogodek, kot je npr. potisk (push) v repozitorij.
+
+Ko GitHub pošlje zahtevek na /deploy endpoint, skripta najprej preveri, ali je podpis zahtevka veljaven. To preverjanje se izvaja z uporabo HMAC algoritma SHA-256, ki preveri, ali je prejeti podpis enak podpisu, ki ga izračuna skripta na podlagi tajnega ključa (ki je definiran kot SECRET_TOKEN). Če podpis ni ustrezen, se zahtevek zavrne z odgovorom "Unauthorized".
+
+Če je podpis pravilen, skripta nadaljuje z izvajanjem postopka nadgradnje:
+
+1. Najprej se prijavi v Docker Registry z uporabo uporabniškega imena in gesla, ki ju dobi iz okolja (DOCKER_USERNAME in DOCKER_PASSWORD).
+
+2. Nato ustavi vse trenutno zagnane Docker containere z uporabo ukaza docker-compose down.
+
+3. Potem prenese najnovejše verzije slik iz registrija z ukazom docker-compose pull.
+
+4. In nazadnje, aplikacijo ponovno zažene z ukazom docker-compose up -d --build, ki tudi sproži morebitno ponovno izgradnjo.
+
+Vsi ti ukazi se izvajajo v točno določenem direktoriju, nastavljenem v spremenljivki PROJECT_PATH, kar pomeni, da lahko skripto enostavno prilagodiš tudi drugim projektom.
+
+Skripta je dodatno pripravljena na to, da se izvaja kot sistemska storitev s pomočjo systemd. V datoteki webhook.service je definirano, da se storitev samodejno zažene ob zagonu sistema, deluje pod uporabnikom kaput in ima nastavljen delovni direktorij. Tako poskrbimo, da skripta ne potrebuje ročnega zagona in da ob morebitnem izpadu sama ponovno zažene.
+
+Seveda pa so pri takšni implementaciji možne tudi varnostne luknje, zato je pomembno, da jih prepoznamo in ustrezno naslovimo. Ena ključnih zaščit je že vgrajena – preverjanje HMAC podpisa. Vendar pa bi bilo smiselno dodati tudi dodatne zaščite, kot so:
+
+- uporaba HTTPS (npr. z uporabo Nginx kot reverse proxy),
+
+- omejevanje dostopa do endpointa po IP naslovu (firewall ali konfiguracija strežnika),
+
+- skrivanje občutljivih podatkov, kot so Docker gesla,
+
+- logiranje vseh poskusov dostopa in opozarjanje administratorja ob neuspelih zahtevkih.
+
+![img_7.png](img_7.png)
+
+```python
+from flask import Flask, request, abort
+import subprocess
+import os
+import hmac
+import hashlib
+from dotenv import load_dotenv
+
+# Naloži .env datoteko, če obstaja
+load_dotenv()
+
+app = Flask(__name__)
+GITHUB_SECRET = os.getenv("SECRET_TOKEN", "secret-token")
+PROJECT_PATH = "/srv/kaput/spletno"
+GIT_BRANCH = "dev"
+
+def verify_github_signature(payload, signature_header):
+    print("Verifying signature...")
+
+    if not signature_header:
+        print("No signature header provided.")
+        return False
+
+    try:
+        sha_name, signature = signature_header.split('=')
+        print(f"Signature header received: sha_name={sha_name}, signature={signature}")
+
+        if sha_name != 'sha256':
+            print("Unsupported hash algorithm")
+            return False
+
+        mac = hmac.new(GITHUB_SECRET.encode(), msg=payload, digestmod=hashlib.sha256)
+        expected = mac.hexdigest()
+
+        print(f"Expected signature: {expected}")
+        is_valid = hmac.compare_digest(expected, signature)
+        print(f"Signature valid? {is_valid}")
+        return is_valid
+    except Exception as e:
+        print(f"Exception while verifying signature: {e}")
+        return False
+
+@app.route('/deploy', methods=['POST'])
+def deploy():
+    signature = request.headers.get("X-Hub-Signature-256")
+    print(f"Received signature header: {signature}")
+
+    if not verify_github_signature(request.data, signature):
+        print("Signature verification failed.")
+        return "Unauthorized", 401
+
+    try:
+        print("Logging into Docker registry...")
+        subprocess.run(
+            ["docker", "login", "-u", os.getenv("DOCKER_USERNAME"), "-p", os.getenv("DOCKER_PASSWORD")],
+            check=True
+        )
+
+        print("Shutting down current containers...")
+        subprocess.run(["docker-compose", "-f", "docker-compose.dev.yml", "down"], cwd=PROJECT_PATH, check=True)
+
+        print("Pulling new images...")
+        subprocess.run(["docker-compose", "-f", "docker-compose.dev.yml", "pull"], cwd=PROJECT_PATH, check=True)
+
+        print("Starting containers with build...")
+        subprocess.run(["docker-compose", "-f", "docker-compose.dev.yml", "up", "-d", "--build"], cwd=PROJECT_PATH, check=True)
+
+        return "Deploy OK", 200
+
+    except subprocess.CalledProcessError as e:
+        print(f"Exception during deployment: {e}")
+        return f"Error: {e}\nStdout: {e.stdout}\nStderr: {e.stderr}", 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5002)
+```
+
+---
+
+### systemd Servis (`/etc/systemd/system/webhook.service`)
+
+systemd je sistemski upravljalnik, ki omogoča samodejni zagon tvojega webhook strežnika ob zagonu sistema, njegovo ponovno zaganjanje v primeru napake, ter centralizirano upravljanje (s systemctl ukazi).
+
+```ini
+[Unit]
+Description=Flask Webhook Server
+After=network.target
+
+[Service]
+User=kaput
+WorkingDirectory=/srv/kaput/spletno
+ExecStart=/usr/bin/python3 /srv/kaput/spletno/webhook_server.py
+Restart=always
+Environment=SECRET_TOKEN=dckr_pat_example
+
+[Install]
+WantedBy=multi-user.target
+```
+
+#### Zagon storitve
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable webhook
+sudo systemctl start webhook
+```
+
+#### Preverjanje stanja in logov
+
+```bash
+sudo systemctl status webhook
+sudo journalctl -u webhook.service -b -f
+```
+---
+
+#### Testiranje Webhook Strežnika
+Za testiranje delovanja webhook strežnika smo uporabili `curl` ukaz:
+
+```bash
+curl -X POST http://localhost:5002/deploy \
+  -H "X-Hub-Signature-256: sha256=<valid-signature>" \
+  -H "Content-Type: application/json" \
+  -d '{}'
+```
+
+## Varnostni Vidiki
+
+Naša implementacija CI/CD z uporabo webhook strežnika ima nekaj varnostnih vidikov, ki preprečujejo zlorabe:
+- HMAC verifikacija zagotovi, da je Webhook legitimen
+- Okoljske spremenljivke (SECRET_TOKEN, DOCKER_USERNAME, DOCKER_PASSWORD) niso zapisane v kodi – skripta uporablja .env in systemd environment
+
+### Potencialne ranljivosti
+
+- Nezaščiten webhook endpoint (možnost zlorabe)
+- Brez HTTPS zaščite (možnost MITM napada)
+- Slaba hramba gesel/tokenov
+- Python proces z previsokimi privilegiji
+
+### Ukrepi za zaščito
+
+- Uporaba **X-SECRET-TOKEN** oz. **X-Hub-Signature-256** in preverjanje HMAC
+- Uporaba systemd in omejevanje uporabnika (`User=kaput`)
+- Aktivacija HTTPS z uporabo **Caddy** ali **nginx** + Let's Encrypt
+- IP whitelisting in rate limiting (npr. s Flask-Limiter)
+- Priporočena uporaba naprednejših metod avtentikacije (npr. JWT)
+
+---
+
+## Zaključek
+
+Vzpostavljena je zanesljiva CI/CD pot, ki vključuje:
+
+1. **GitHub Actions** izdela in naloži Docker slike v Docker Hub.
+2. Sproži **Webhook** s preverjeno avtentikacijo.
+3. **Strežnik** ustavi trenutne kontejnere, prenese nove slike in zažene novo različico aplikacije.
+
+---
